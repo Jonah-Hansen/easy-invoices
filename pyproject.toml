@@ -1,0 +1,86 @@
+# ----------------------------------------------------------------------
+# |  pyproject.toml
+# ----------------------------------------------------------------------
+# |  EasyInvoices by Jonah Hansen
+# ----------------------------------------------------------------------
+# https://packaging.python.org/en/latest/specifications/declaring-project-metadata/
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "easy-invoices"
+
+version = "0.1.0"
+
+authors = [
+  { name="Jonah Hansen", email="tce_mc@telus.net" },
+  { name = "Alex Graham", email = "alex@aode.space" },
+]
+
+description = "lightweight invoice generator"
+
+readme = "README.md"
+
+requires-python = ">=3.8"
+
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+
+[project.scripts]
+ez-invoice = "EasyInvoices.EntryPoint:main"
+
+[project.urls]
+Homepage = "https://github.com/Jonah-Hansen/easy-invoices"
+Issues = "https://github.com/Jonah-Hansen/easy-invoices/issues"
+
+# ----------------------------------------------------------------------
+# |  Black Extension
+# ----------------------------------------------------------------------
+[tool.black]
+line-length = 100
+
+# ----------------------------------------------------------------------
+# |  Pylint
+# ----------------------------------------------------------------------
+[tool.pylint.basic]
+class-const-naming-style = "any"
+function-naming-style = "snake_case"
+good-names = [
+    "_",
+    "f",
+    #
+    "i",
+    "j",
+    "k",
+]
+method-naming-style = "any"
+module-naming-style = "PascalCase"
+
+[tool.pylint.design]
+max-args = 10
+max-parents = 15
+
+[tool.pylint."messages control"]
+disable = []
+
+# ----------------------------------------------------------------------
+# |  Pytest
+# ----------------------------------------------------------------------
+[tool.pytest.ini_options]
+python_files = [
+    "**/*Test.py",
+]
+
+# ----------------------------------------------------------------------
+# |  Setuptools
+# ----------------------------------------------------------------------
+[tool.setuptools.dynamic]
+version = { attr = "EasyInvoices.__version__" }
+
+[tool.setuptools.packages.find]
+where = ["src"]
