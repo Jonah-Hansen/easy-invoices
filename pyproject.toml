@@ -42,31 +42,31 @@ Issues = "https://github.com/Jonah-Hansen/easy-invoices/issues"
 # |  Black Extension
 # ----------------------------------------------------------------------
 [tool.black]
-line-length = 100
+line-length = 80
 
 # ----------------------------------------------------------------------
 # |  Pylint
 # ----------------------------------------------------------------------
 [tool.pylint.basic]
-class-const-naming-style = "any"
+module-naming-style = "snake_case"
+class-naming-style = "PascalCase"
+class-const-naming-style = "PascalCase"
+method-naming-style = "snake_case"
 function-naming-style = "snake_case"
-good-names = [
-    "_",
-    "f",
-    #
-    "i",
-    "j",
-    "k",
-]
-method-naming-style = "any"
-module-naming-style = "PascalCase"
+variable-naming-style = "snake_case"
+good-names = ["_", "f", "i", "j", "k",]
+
+[tool.pylint.classes]
+valid-classmethod-first-arg = ["self"]
 
 [tool.pylint.design]
 max-args = 10
 max-parents = 15
 
 [tool.pylint."messages control"]
-disable = []
+disable = [
+    "missing-function-docstring"
+]
 
 # ----------------------------------------------------------------------
 # |  Pytest
@@ -79,8 +79,6 @@ python_files = [
 # ----------------------------------------------------------------------
 # |  Setuptools
 # ----------------------------------------------------------------------
-[tool.setuptools.dynamic]
-version = { attr = "EasyInvoices.__version__" }
 
 [tool.setuptools.packages.find]
 where = ["src"]
