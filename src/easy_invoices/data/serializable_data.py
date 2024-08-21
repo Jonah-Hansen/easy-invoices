@@ -1,4 +1,4 @@
-"""base class for dataclasses that can be serialized to json"""
+"""base class for dataclasses that can be serialized to json. also acts as the crud api for dataclass files"""
 
 from importlib.metadata import PackageNotFoundError, metadata
 import tomllib
@@ -23,10 +23,12 @@ class SerializableData:
 
     @property
     def _file_path(self):
+        """path to the file that would correspond with this object's id"""
         return os.path.join(self._data_dir, f"{self.id}.json")
 
     @property
     def _data_dir(self):
+        """path to the directory where files for this object type should be saved"""
         return os.path.join(
             user_data_dir(_get_app_name()),
             self._pluralize(self.__class__.__name__),
@@ -38,10 +40,10 @@ class SerializableData:
         return os.path.exists(self._file_path)
 
     def save(self: Self, overwrite: bool = False) -> bool:
-
+        """attempts to save the file. returns true if successful"""
         # Ensure the directory exists
-        os.makedirs(self._data_dir, exist_ok=True)
 
+        os.makedirs(self._data_dir, exist_ok=True)
         # Check if the file already exists
         if self.exists and not overwrite:
             return False
@@ -53,6 +55,7 @@ class SerializableData:
         return True
 
     def list(self) -> List[str]:
+        """lists all ids of saved instances of this type"""
         files: List[str] = []
         try:
             # List all files and directories in the given directory
@@ -76,6 +79,7 @@ class SerializableData:
 
 
 def _find_pyproject_toml():
+    """returns the path to the pyproject toml file. for use in develoment with get_app_name()"""
     current_dir = os.path.abspath(os.path.dirname(__file__))
 
     while True:
@@ -92,7 +96,8 @@ def _find_pyproject_toml():
     return None
 
 
-def _get_app_name():
+def _get_app_name() -> str:
+    """returns the app name as specified in pyproject/in installation"""
     try:
         # Try to get metadata from installed package
         return metadata(__package__ or "easy_invoices")["Name"]

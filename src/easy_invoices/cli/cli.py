@@ -1,15 +1,16 @@
 """cli functions"""
 
 from enum import Enum
-from dataclasses import fields, is_dataclass
-from typing import Any, Dict, get_args, get_origin
+from dataclasses import Field, fields, is_dataclass
+from typing import Any, Dict, List, get_args, get_origin
 import typer
 import easy_invoices.data as Data
 
 
+# initialize typer cli
 cli: typer.Typer = typer.Typer()
 
-
+# possible args for crud operations
 class DataTypes(Enum):
     Company = "company"
     Contact = "contact"
@@ -27,61 +28,67 @@ data_classes = {
 
 
 def get_datatype_from_string(string: str) -> DataTypes:
+    """returns the enum that corresponds to the string"""
     for item in DataTypes:
         if item.value == string:
             return item
     raise ValueError(f"No DataType found with value '{string}'")
 
 
-def recursive_prompt_for_fields(obj: Any) -> Dict[str, Any]:
+def prompt_for_list(field: Field[List[Any]], value: List[Any]) -> List[Any]:
+    """prompt for nested values in a list"""
+    values: List[Any] = []
+    item_type = get_args(field.type)[0]  # Get the type of list items
+    num_items: int = typer.prompt(
+        f"How many '{field.name}' would you like to define?",
+        default=len(value) if value else 0,
+        show_default=False,
+        type=int,
+    )
+    for i in range(num_items):
+        if is_dataclass(item_type):
+            item_data = recursive_prompt_for_fields(item_type())
+            values.append(item_type(**item_data))
+        else:
+            item_value = typer.prompt(
+                f"Item {i+1} of '{field.name}'",
+                show_default=False,
+            )
+            values.append(item_type(item_value))
+    return values
+
+
+def recursive_prompt_for_fields(
+    instance: Data.SerializableData,
+) -> Dict[str, Any]:
     """
     Prompts the user to populate fields on a dataclass. Works recursively for nested classes.
     """
     values: Dict[str, Any] = {}
 
-    for field in fields(obj):
-        field_value = getattr(obj, field.name)
-        field_type = field.type
-        origin = get_origin(field_type)
+    for field in fields(instance):
+        field_value = getattr(instance, field.name)
 
-        if origin is list:
-            item_type = get_args(field_type)[0]  # Get the type of list items
-
-            num_items = int(
-                typer.prompt(
-                    f"How many '{field.name}' would you like to define?",
-                    default=len(field_value) if field_value else 0,
-                    show_default=True,
-                )
-            )
-
-            values[field.name] = []
-            for i in range(num_items):
-                if is_dataclass(item_type):
-                    item_instance = item_type()
-                    item_data = recursive_prompt_for_fields(item_instance)
-                    values[field.name].append(item_type(**item_data))
-                else:
-                    item_value = typer.prompt(
-                        f"Item {i+1} of field '{field.name}' ({item_type.__name__})",
-                        show_default=False,
-                    )
-                    values[field.name].append(item_type(item_value))
+        if get_origin(field.type) is list:
+            # field is list
+            values[field.name] = prompt_for_list(field, field_value)
         elif is_dataclass(field_value):
+            # field is nested dataclass
             nested_values = recursive_prompt_for_fields(field_value)
             values[field.name] = field_value.__class__(**nested_values)
         else:
+            # filed is a basic type
             values[field.name] = typer.prompt(
-                f"{field.name}",
+                field.name,
                 default=field_value,
                 show_default=False,
-                type=field_type,
+                type=field.type,
             )
-
     return values
 
 
 def prompt_for_preset(preset: Data.SerializableData) -> Dict[str, Any]:
+    """prompt for filling out a preset. checks that the specififed company, contact, options etc exist, and if not asks if the user would like to create them"""
     values: Dict[str, str] = {}
     for field in fields(preset):
         values[field.name] = prompt_for_preset_field(preset, field.name)
@@ -89,30 +96,36 @@ def prompt_for_preset(preset: Data.SerializableData) -> Dict[str, Any]:
 
 
 def prompt_for_preset_field(preset: Data.SerializableData, field: str) -> str:
+    """returns the id of the specified data file, or the new one created"""
     field_value = getattr(preset, field)
     value = typer.prompt(field, default=field_value, show_default=False)
     if field == "id":
         return value
-    temp_class = data_classes[get_datatype_from_string(field)]()
-    temp_class.id = value
+    # create a class instance with the specified id, and check if it exisits as a file
+    temp_class = data_classes[get_datatype_from_string(field)](id=value)
     if not temp_class.exists:
         if typer.confirm(
             f"no {field} with id '{value}' found. would you like to create it?"
         ):
+            # create a new data file
             value = new(get_datatype_from_string(field))
         else:
+            # ask again
             prompt_for_preset_field(preset, field)
     return value
 
 
 @cli.command()
 def show_all(data_type: DataTypes):
+    """prints the list of saved data files of the given type"""
     selected_class = data_classes[data_type]()
     typer.echo(selected_class.list())
 
 
 @cli.command()
 def new(data_type: DataTypes) -> str:
+    """prompts for creation of a new data file of the specified type.
+    returns the id of the newly created file"""
     # instantiate the class
     selected_class = data_classes[data_type]()
 
