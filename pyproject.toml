@@ -32,7 +32,7 @@ classifiers = [
 ]
 
 [project.scripts]
-ez-invoice = "EasyInvoices.EntryPoint:main"
+easy-invoices = "easy_invoices.cli:main"
 
 [project.urls]
 Homepage = "https://github.com/Jonah-Hansen/easy-invoices"
@@ -57,7 +57,7 @@ variable-naming-style = "snake_case"
 good-names = ["_", "f", "i", "j", "k",]
 
 [tool.pylint.classes]
-valid-classmethod-first-arg = ["self"]
+valid-classmethod-first-arg = ["self", "cls"]
 
 [tool.pylint.design]
 max-args = 10
@@ -65,7 +65,8 @@ max-parents = 15
 
 [tool.pylint."messages control"]
 disable = [
-    "missing-function-docstring"
+    "missing-function-docstring",
+    "missing-class-docstring"
 ]
 
 # ----------------------------------------------------------------------
