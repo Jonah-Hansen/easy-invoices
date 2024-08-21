@@ -19,7 +19,7 @@ pip install .
 ```
 
 ```bash
-easy-invoices list <contact | company | options | preset>
+easy-invoices show-all <contact | company | options | preset>
 easy-invoices new <contact | company | options | preset>
 ```
 
