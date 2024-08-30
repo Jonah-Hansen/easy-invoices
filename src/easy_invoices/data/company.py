@@ -6,4 +6,4 @@ from .contact import Contact
 
 @dataclass
 class Company(Contact):
-    tax_id: str = ""
+    business_number: str = ""

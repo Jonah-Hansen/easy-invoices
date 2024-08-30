@@ -6,7 +6,7 @@ from .contact import Contact
 from .options import Options
 from .preset import Preset
 
-__all__ = [
+__all__: list[str] = [
     "SerializableData",
     "Company",
     "Contact",

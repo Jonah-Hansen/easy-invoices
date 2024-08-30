@@ -10,6 +10,7 @@ import easy_invoices.data as Data
 # initialize typer cli
 cli: typer.Typer = typer.Typer()
 
+
 # possible args for crud operations
 class DataTypes(Enum):
     Company = "company"
@@ -19,7 +20,7 @@ class DataTypes(Enum):
 
 
 # maps data types to the correspoinding data class
-data_classes = {
+data_classes: dict[DataTypes, Data.SerializableData] = {
     DataTypes.Company: Data.Company,
     DataTypes.Contact: Data.Contact,
     DataTypes.Options: Data.Options,
@@ -88,7 +89,10 @@ def recursive_prompt_for_fields(
 
 
 def prompt_for_preset(preset: Data.SerializableData) -> Dict[str, Any]:
-    """prompt for filling out a preset. checks that the specififed company, contact, options etc exist, and if not asks if the user would like to create them"""
+    """prompt for filling out a preset.
+    checks that the specififed company, contact, options etc exist,
+    and if not asks if the user would like to create them
+    """
     values: Dict[str, str] = {}
     for field in fields(preset):
         values[field.name] = prompt_for_preset_field(preset, field.name)
@@ -118,8 +122,15 @@ def prompt_for_preset_field(preset: Data.SerializableData, field: str) -> str:
 @cli.command()
 def show_all(data_type: DataTypes):
     """prints the list of saved data files of the given type"""
-    selected_class = data_classes[data_type]()
+    selected_class: Data.SerializableData = data_classes[data_type]()
     typer.echo(selected_class.list())
+
+
+@cli.command()
+def show(data_type: DataTypes, name: str):
+    selected_class: Data.SerializableData = data_classes[data_type](id=name)
+    selected_class.load()
+    typer.echo(selected_class)
 
 
 @cli.command()

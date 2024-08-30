@@ -63,7 +63,10 @@ valid-classmethod-first-arg = ["self", "cls"]
 max-args = 10
 max-parents = 15
 
-[tool.pylint."messages control"]
+[tool.pylint.FORMAT]
+indent-string = "    "
+
+[tool.pylint]
 disable = [
     "missing-function-docstring",
     "missing-class-docstring"
