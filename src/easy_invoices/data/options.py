@@ -2,7 +2,7 @@
 
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import List
+from typing import Any, List
 from .serializable_data import SerializableData
 
 
@@ -36,3 +36,10 @@ class Options(SerializableData):
     payment_terms: str = PaymentTerms.NET30.value
     rate: float = 0.00
     taxes: List[Taxes] = field(default_factory=lambda: [Taxes()])
+
+    def _populate_fields(self, data: dict[str, Any]) -> None:
+        super()._populate_fields(data)
+        taxes: list[Taxes] = []
+        for item in data["taxes"]:
+            taxes.append(Taxes(**item))
+        self.taxes = taxes

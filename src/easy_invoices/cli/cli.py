@@ -2,7 +2,7 @@
 
 from enum import Enum
 from dataclasses import asdict
-from typing import Any, Dict, List, Type
+from typing import Annotated, Any, Dict, List, Type
 import typer
 import easy_invoices.data as Data
 
@@ -42,12 +42,17 @@ def show_all(data_type: DataTypes) -> None:
 
 
 @cli.command()
-def show(data_type: DataTypes, name: str) -> None:
+def show(
+    data_type: DataTypes, name: Annotated[str, typer.Argument()] = "default"
+) -> None:
+    """prints the specified data class"""
     typer.echo(data_classes[data_type](id=name).load())
 
 
 @cli.command()
-def new(data_type: DataTypes, id_field: str = "") -> str:
+def new(
+    data_type: DataTypes, id_field: Annotated[str, typer.Argument()] = ""
+) -> str:
     """prompts for creation of a new data file of the specified type.
     returns the id of the newly created file"""
     # instantiate the class

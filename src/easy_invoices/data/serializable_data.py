@@ -6,7 +6,7 @@ also acts as the crud api for dataclass files
 from abc import ABC
 from importlib.metadata import PackageNotFoundError, metadata
 import tomllib
-from dataclasses import asdict, dataclass, is_dataclass
+from dataclasses import asdict, dataclass, fields, is_dataclass
 import json
 import os
 from typing import Any, Dict, List, Self, Union
@@ -82,7 +82,25 @@ class SerializableData(ABC):
         """
         populate this instance with data loaded from the corresponding file
         """
+        try:
+            with open(self._file_path, "r", encoding="utf8") as file:
+                data: dict[str, Any] = json.load(file)
+                self._populate_fields(data)
+        except FileNotFoundError:
+            print(f"Error: {self.__class__.__name__} '{self.id}' not found")
+        except json.JSONDecodeError:
+            print(f"Error: The file '{self._file_path}' contains invalid JSON.")
         return self
+
+    def _populate_fields(self, data: dict[str, Any]) -> None:
+        for field in fields(self):
+            if not field.name in data:
+                continue
+            if is_dataclass(field.type):
+                print("its a dataclass")
+                setattr(self, field.name, field.type(**data[field.name]))
+            else:
+                setattr(self, field.name, data[field.name])
 
 
 # === private functions ===

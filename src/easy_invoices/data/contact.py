@@ -1,7 +1,6 @@
 """contact info for invoice parties (you or client)"""
 
 from dataclasses import dataclass, field
-
 from .address import Address
 from .serializable_data import SerializableData
 
