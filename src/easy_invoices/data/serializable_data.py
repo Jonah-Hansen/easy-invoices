@@ -1,14 +1,15 @@
-"""base class for dataclasses that can be serialized to json.
+"""
+base class for dataclasses that can be serialized to json.
 also acts as the crud api for dataclass files
 """
 
 from abc import ABC
 from importlib.metadata import PackageNotFoundError, metadata
 import tomllib
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, is_dataclass
 import json
 import os
-from typing import Any, List, Self
+from typing import Any, Dict, List, Self, Union
 from platformdirs import user_data_dir
 
 
@@ -22,13 +23,23 @@ class SerializableData(ABC):
         return os.path.exists(self._file_path)
 
     @property
+    def asdict(self) -> Dict[str, Any]:
+        """
+        returns this object and its fields as a full dictionary
+        (recursive for nested classes and lists)
+        """
+        return {k: _serialize(v) for k, v in asdict(self).items()}
+
+    @property
     def _file_path(self) -> str:
         """path to the file that would correspond with this object's id"""
         return os.path.join(self._data_dir, f"{self.id}.json")
 
     @property
     def _data_dir(self) -> str:
-        """path to the directory where files for this object type should be saved"""
+        """
+        path to the directory where files for this object type should be saved
+        """
         return os.path.join(
             user_data_dir(_get_app_name()),
             _pluralize(self.__class__.__name__),
@@ -67,11 +78,25 @@ class SerializableData(ABC):
             )
         return files
 
-    @staticmethod
-    def load():
-        pass
+    def load(self) -> Self:
+        """
+        populate this instance with data loaded from the corresponding file
+        """
+        return self
 
-    # === private functions ===
+
+# === private functions ===
+
+
+def _serialize(obj: Any) -> Union[Dict[str, Any], List[Any], Any]:
+    """returns the object, serialized to basic types"""
+    if is_dataclass(type[obj]):  # recursively serialize class fields
+        return {k: _serialize(v) for k, v in asdict(obj).items()}
+    if isinstance(obj, list):  # recursively serialize list items
+        return [_serialize(i) for i in obj]  # type: ignore
+    if isinstance(obj, dict):  # recursively serialize dict values
+        return {k: _serialize(v) for k, v in obj.items()}  # type: ignore
+    return obj  # obj is not serializable or is already serialized
 
 
 def _pluralize(word: str) -> str:
@@ -83,7 +108,10 @@ def _pluralize(word: str) -> str:
 
 
 def _find_pyproject_toml() -> str | None:
-    """returns the path to the pyproject toml file. for use in develoment with get_app_name()"""
+    """
+    returns the path to the pyproject toml file.
+    for use in develoment with get_app_name()
+    """
     current_dir: str = os.path.abspath(os.path.dirname(__file__))
 
     while True:

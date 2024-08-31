@@ -1,11 +1,10 @@
 """cli functions"""
 
 from enum import Enum
-from dataclasses import Field, fields, is_dataclass
-from typing import Any, Dict, List, get_args, get_origin
+from dataclasses import asdict
+from typing import Any, Dict, List, Type
 import typer
 import easy_invoices.data as Data
-
 
 # initialize typer cli
 cli: typer.Typer = typer.Typer()
@@ -20,7 +19,7 @@ class DataTypes(Enum):
 
 
 # maps data types to the correspoinding data class
-data_classes: dict[DataTypes, Data.SerializableData] = {
+data_classes: dict[DataTypes, Type[Data.SerializableData]] = {
     DataTypes.Company: Data.Company,
     DataTypes.Contact: Data.Contact,
     DataTypes.Options: Data.Options,
@@ -31,129 +30,137 @@ data_classes: dict[DataTypes, Data.SerializableData] = {
 def get_datatype_from_string(string: str) -> DataTypes:
     """returns the enum that corresponds to the string"""
     for item in DataTypes:
-        if item.value == string:
+        if item.value == string.lower():
             return item
     raise ValueError(f"No DataType found with value '{string}'")
 
 
-def prompt_for_list(field: Field[List[Any]], value: List[Any]) -> List[Any]:
-    """prompt for nested values in a list"""
-    values: List[Any] = []
-    item_type = get_args(field.type)[0]  # Get the type of list items
-    num_items: int = typer.prompt(
-        f"How many '{field.name}' would you like to define?",
-        default=len(value) if value else 0,
-        show_default=False,
-        type=int,
-    )
-    for i in range(num_items):
-        if is_dataclass(item_type):
-            item_data = recursive_prompt_for_fields(item_type())
-            values.append(item_type(**item_data))
-        else:
-            item_value = typer.prompt(
-                f"Item {i+1} of '{field.name}'",
-                show_default=False,
-            )
-            values.append(item_type(item_value))
-    return values
-
-
-def recursive_prompt_for_fields(
-    instance: Data.SerializableData,
-) -> Dict[str, Any]:
-    """
-    Prompts the user to populate fields on a dataclass. Works recursively for nested classes.
-    """
-    values: Dict[str, Any] = {}
-
-    for field in fields(instance):
-        field_value = getattr(instance, field.name)
-
-        if get_origin(field.type) is list:
-            # field is list
-            values[field.name] = prompt_for_list(field, field_value)
-        elif is_dataclass(field_value):
-            # field is nested dataclass
-            nested_values = recursive_prompt_for_fields(field_value)
-            values[field.name] = field_value.__class__(**nested_values)
-        else:
-            # filed is a basic type
-            values[field.name] = typer.prompt(
-                field.name,
-                default=field_value,
-                show_default=False,
-                type=field.type,
-            )
-    return values
-
-
-def prompt_for_preset(preset: Data.SerializableData) -> Dict[str, Any]:
-    """prompt for filling out a preset.
-    checks that the specififed company, contact, options etc exist,
-    and if not asks if the user would like to create them
-    """
-    values: Dict[str, str] = {}
-    for field in fields(preset):
-        values[field.name] = prompt_for_preset_field(preset, field.name)
-    return values
-
-
-def prompt_for_preset_field(preset: Data.SerializableData, field: str) -> str:
-    """returns the id of the specified data file, or the new one created"""
-    field_value = getattr(preset, field)
-    value = typer.prompt(field, default=field_value, show_default=False)
-    if field == "id":
-        return value
-    # create a class instance with the specified id, and check if it exisits as a file
-    temp_class = data_classes[get_datatype_from_string(field)](id=value)
-    if not temp_class.exists:
-        if typer.confirm(
-            f"no {field} with id '{value}' found. would you like to create it?"
-        ):
-            # create a new data file
-            value = new(get_datatype_from_string(field))
-        else:
-            # ask again
-            prompt_for_preset_field(preset, field)
-    return value
-
-
 @cli.command()
-def show_all(data_type: DataTypes):
+def show_all(data_type: DataTypes) -> None:
     """prints the list of saved data files of the given type"""
-    selected_class: Data.SerializableData = data_classes[data_type]()
-    typer.echo(selected_class.list())
+    typer.echo(data_classes[data_type]().list())
 
 
 @cli.command()
-def show(data_type: DataTypes, name: str):
-    selected_class: Data.SerializableData = data_classes[data_type](id=name)
-    selected_class.load()
-    typer.echo(selected_class)
+def show(data_type: DataTypes, name: str) -> None:
+    typer.echo(data_classes[data_type](id=name).load())
 
 
 @cli.command()
-def new(data_type: DataTypes) -> str:
+def new(data_type: DataTypes, id_field: str = "") -> str:
     """prompts for creation of a new data file of the specified type.
     returns the id of the newly created file"""
     # instantiate the class
     selected_class = data_classes[data_type]()
-
+    if id_field != "":
+        selected_class.id = id_field
+    populated_fields: dict[str, Any] = {}
     if data_type == DataTypes.Preset:
-        filled_fields = prompt_for_preset(selected_class)
+        selected_class = Data.Preset()
+        populated_fields = _preset_dict_from_prompt(selected_class)
     else:
-        filled_fields = recursive_prompt_for_fields(selected_class)
+        populated_fields = _dict_from_prompt(selected_class.asdict)
+
     # make a new instance using the given values, and save to json
-    instance = selected_class.__class__(**filled_fields)
-    if not instance.save():
-        if not typer.confirm(
-            f"{data_type.value} '{instance.id}' already exisits. would you like to overwrite it?"
-        ):
-            return instance.id
+    instance: Data.SerializableData = selected_class.__class__(
+        **populated_fields
+    )
+
+    if instance.save():
+        typer.echo(f"new {data_type.value} created: '{instance.id}'")
+        return instance.id
+
+    if typer.confirm(
+        f"{data_type.value} '{instance.id}' already exisits. would you like to overwrite it?"
+    ):
         instance.save(True)
-    typer.echo(f"new {data_type.value} created: '{instance.id}'")
+        typer.echo(f"updated {data_type.value} '{instance.id}'")
+
     return instance.id
+
+
+# === private functions ===
+
+
+def _dict_from_prompt(
+    dictionary: Dict[str, Any],
+) -> Dict[str, Any]:
+    """
+    Prompts the user to populate fields on a SerializableData instance.
+    Works recursively for nested classes and lists.
+    """
+    for key, value in dictionary.items():
+        if isinstance(value, dict):
+            dict_value: dict[str, Any] = value
+            dictionary[key] = _dict_from_prompt(dict_value)
+        elif isinstance(value, list):
+            list_value: list[Any] = value
+            num_items: int = typer.prompt(
+                f"How many '{key}' would you like to define?",
+                default=0,
+                type=int,
+            )
+            dictionary[key] = _list_from_prompt([list_value[0]] * num_items)
+        else:
+            value: Any = value
+            dictionary[key] = typer.prompt(
+                key,
+                default=value,
+                show_default=bool(value),
+            )
+    return dictionary
+
+
+def _list_from_prompt(input_list: list[Any]) -> List[Any]:
+    """prompt for nested values in a list"""
+    for i, item in enumerate(input_list):
+        if isinstance(item, dict):
+            dict_item: dict[str, Any] = item
+            input_list[i] = _dict_from_prompt(dict_item)
+        elif isinstance(item, list):
+            list_item: list[Any] = item
+            input_list[i] = _list_from_prompt(list_item)
+        else:
+            input_list[i] = typer.prompt(
+                f"Item {i+1}", default=item, show_default=bool(item)
+            )
+    return input_list
+
+
+def _preset_dict_from_prompt(preset: Data.Preset) -> Dict[str, str]:
+    """prompt for filling out a preset.
+    checks that the specififed company, contact, options etc exist,
+    and if not asks if the user would like to create them
+    """
+    values: Dict[str, str] = asdict(preset)
+    for field in values.keys():
+        values[field] = _prompt_for_preset_field(preset, field, values[field])
+    return values
+
+
+def _prompt_for_preset_field(
+    preset: Data.Preset, field: str, value: str
+) -> str:
+    """returns the id of the specified data file, or the new one created"""
+    value = typer.prompt(field, default=value, show_default=bool(value))
+    if field == "id":
+        return value
+
+    # create a class instance with the specified id, and check if it exisits as a file
+    temp_class = data_classes[get_datatype_from_string(field)](id=value)
+    if temp_class.exists:
+        return value
+
+    if typer.confirm(
+        f"no {field} with id '{value}' found. would you like to create it?",
+        True,
+    ):
+        # create a new data file
+        return new(get_datatype_from_string(field), value)
+
+    # ask again
+    _prompt_for_preset_field(preset, field, value)
+    return value
 
 
 if __name__ == "__main__":

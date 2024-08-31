@@ -35,4 +35,4 @@ class Taxes:
 class Options(SerializableData):
     payment_terms: str = PaymentTerms.NET30.value
     rate: float = 0.00
-    taxes: List[Taxes] = field(default_factory=list)
+    taxes: List[Taxes] = field(default_factory=lambda: [Taxes()])
