@@ -20,7 +20,12 @@ pip install .
 
 ```bash
 easy-invoices show-all <contact | company | options | preset>
+easy-invoices show <contact | company | options | preset>
 easy-invoices new <contact | company | options | preset>
+easy-invoices edit <contact | company | options | preset>
+easy-invoices delete <contact | company | options | preset>
 ```
 
-unspecified fields will default to empty string. unspecified ids will be "default"
+- `new` `edit` and `show` can take an optional arg for "name"
+- nunspecified fields will default to empty string.
+- unspecified ids will be "default"

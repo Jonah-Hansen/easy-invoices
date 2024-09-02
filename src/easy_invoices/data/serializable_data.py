@@ -45,19 +45,17 @@ class SerializableData(ABC):
             _pluralize(self.__class__.__name__),
         )
 
-    def save(self: Self, overwrite: bool = False) -> bool:
-        """attempts to save the file. returns true if successful"""
+    def delete(self):
+        if not self.exists:
+            raise FileNotFoundError
+        os.remove(self._file_path)
+
+    def save(self: Self):
         # Ensure the directory exists
         os.makedirs(self._data_dir, exist_ok=True)
-        # Check if the file already exists
-        if self.exists and not overwrite:
-            return False
-
         # Serialize the instance to JSON
         with open(self._file_path, "w", encoding="utf8") as json_file:
             json.dump(asdict(self), json_file, indent=4)
-
-        return True
 
     def list(self) -> List[str]:
         """lists all ids of saved instances of this type"""
@@ -85,19 +83,19 @@ class SerializableData(ABC):
         try:
             with open(self._file_path, "r", encoding="utf8") as file:
                 data: dict[str, Any] = json.load(file)
-                self._populate_fields(data)
+                self.populate_fields(data)
         except FileNotFoundError:
             print(f"Error: {self.__class__.__name__} '{self.id}' not found")
         except json.JSONDecodeError:
             print(f"Error: The file '{self._file_path}' contains invalid JSON.")
         return self
 
-    def _populate_fields(self, data: dict[str, Any]) -> None:
+    def populate_fields(self, data: dict[str, Any]) -> None:
+        """populates the fields of this instance from the provided data"""
         for field in fields(self):
             if not field.name in data:
                 continue
             if is_dataclass(field.type):
-                print("its a dataclass")
                 setattr(self, field.name, field.type(**data[field.name]))
             else:
                 setattr(self, field.name, data[field.name])
