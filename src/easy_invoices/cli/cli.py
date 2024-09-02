@@ -50,41 +50,76 @@ def show(
 
 
 @cli.command()
+def delete(
+    data_type: DataTypes, name: Annotated[str, typer.Argument()]
+) -> None:
+    instance = data_classes[data_type](id=name)
+    if not instance.exists:
+        typer.echo(f"{data_type.value} '{name}' does not exist")
+        return
+    if typer.confirm(
+        f"are you sure you want to delete {data_type.value} '{name}'?"
+    ):
+        instance.delete()
+
+
+@cli.command()
+def edit(
+    data_type: DataTypes, name: Annotated[str, typer.Argument()] = "default"
+) -> str:
+    """edit the corresponding file. returns the id of the edited file"""
+    instance: Data.SerializableData = data_classes[data_type](id=name)
+
+    if not instance.exists:
+        if typer.confirm(
+            f"{data_type.value} '{instance.id}' does not exisits. would you like to create it?",
+            True,
+        ):
+            return new(data_type, name)
+        return instance.id
+
+    _prompt_for_class(instance.load())
+    instance.save()
+    typer.echo(f"updated {data_type.value} '{instance.id}'")
+    return instance.id
+
+
+@cli.command()
 def new(
-    data_type: DataTypes, id_field: Annotated[str, typer.Argument()] = ""
+    data_type: DataTypes,
+    name: Annotated[str, typer.Argument()] = "default",
 ) -> str:
     """prompts for creation of a new data file of the specified type.
     returns the id of the newly created file"""
-    # instantiate the class
-    selected_class = data_classes[data_type]()
-    if id_field != "":
-        selected_class.id = id_field
-    populated_fields: dict[str, Any] = {}
-    if data_type == DataTypes.Preset:
-        selected_class = Data.Preset()
-        populated_fields = _preset_dict_from_prompt(selected_class)
-    else:
-        populated_fields = _dict_from_prompt(selected_class.asdict)
+    instance: Data.SerializableData = data_classes[data_type](id=name)
 
-    # make a new instance using the given values, and save to json
-    instance: Data.SerializableData = selected_class.__class__(
-        **populated_fields
-    )
-
-    if instance.save():
-        typer.echo(f"new {data_type.value} created: '{instance.id}'")
+    if instance.exists:
+        if typer.confirm(
+            f"{data_type.value} '{instance.id}' already exisits. would you like to overwrite it?"
+        ):
+            return edit(data_type, name)
         return instance.id
 
-    if typer.confirm(
-        f"{data_type.value} '{instance.id}' already exisits. would you like to overwrite it?"
-    ):
-        instance.save(True)
-        typer.echo(f"updated {data_type.value} '{instance.id}'")
-
+    _prompt_for_class(instance)
+    instance.save()
+    typer.echo(f"new {data_type.value} created: '{instance.id}'")
     return instance.id
 
 
 # === private functions ===
+
+
+def _prompt_for_class(instance: Data.SerializableData) -> Data.SerializableData:
+    """returns the class instance, populated by prompts"""
+    data: dict[str, Any] = {}
+    if instance.__class__ == data_classes[DataTypes.Preset]:
+        instance = Data.Preset(**instance.asdict)
+        data = _preset_dict_from_prompt(instance)
+    else:
+        data = _dict_from_prompt(instance.asdict)
+
+    instance.populate_fields(data)
+    return instance
 
 
 def _dict_from_prompt(

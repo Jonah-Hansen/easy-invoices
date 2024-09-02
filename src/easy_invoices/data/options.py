@@ -37,8 +37,8 @@ class Options(SerializableData):
     rate: float = 0.00
     taxes: List[Taxes] = field(default_factory=lambda: [Taxes()])
 
-    def _populate_fields(self, data: dict[str, Any]) -> None:
-        super()._populate_fields(data)
+    def populate_fields(self, data: dict[str, Any]) -> None:
+        super().populate_fields(data)
         taxes: list[Taxes] = []
         for item in data["taxes"]:
             taxes.append(Taxes(**item))
