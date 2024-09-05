@@ -5,11 +5,23 @@ invoice generation program
 ```bash
 python -m venv .venv
 ```
+or try `python3 -m venv .venv` if python is not found
 
+___
+
+### Windows:
 ```bash
 source .venv/Scripts/activate
 ```
 
+### Mac / Linux:
+```bash
+source .venv/bin/activate
+```
+
+___
+
+### Pip Installation for Virtual Env
 ```bash
 pip install -r requirements.txt
 ```
@@ -17,6 +29,8 @@ pip install -r requirements.txt
 ```bash
 pip install .
 ```
+
+## Commands
 
 ```bash
 easy-invoices show-all <contact | company | options | preset>
